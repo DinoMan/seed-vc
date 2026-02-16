@@ -164,7 +164,7 @@ class CFM(torch.nn.Module):
             # range covered by prompt are set to 0
             y[bib, :, :prompt_lens[bib]] = 0
 
-        estimator_out = self.estimator(y, prompt, x_lens, t.squeeze(), style, mu)
+        estimator_out = self.estimator(y, prompt, x_lens, t.squeeze(1).squeeze(1), style, mu)
         loss = 0
         for bib in range(b):
             loss += self.criterion(estimator_out[bib, :, prompt_lens[bib]:x_lens[bib]], u[bib, :, prompt_lens[bib]:x_lens[bib]])

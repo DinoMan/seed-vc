@@ -203,19 +203,23 @@ class Trainer:
             for i, batch in enumerate(tqdm(self.train_dataloader)):
                 # Process batch
                 self._process_batch(epoch, i, batch)
-                if self.iters >= self.max_steps and self.accelerator.is_main_process:
-                    print("Reached max steps, stopping training")
-                    self._save_checkpoint(epoch)
-                    exit()
+                if self.iters >= self.max_steps:
+                    if self.accelerator.is_main_process:
+                        print("Reached max steps, stopping training")
+                        self._save_checkpoint(epoch)
+                    self.accelerator.wait_for_everyone()
+                    return
 
             # Log epoch completion
             if self.accelerator.is_main_process:
                 print(f"Epoch {epoch} completed in {time.time() - epoch_start_time:.2f} seconds")
 
-            if epoch + 1 >= self.max_epochs and self.accelerator.is_main_process:
-                print("Reached max epochs, stopping training")
-                self._save_checkpoint(epoch)
-                exit()
+            if epoch + 1 >= self.max_epochs:
+                if self.accelerator.is_main_process:
+                    print("Reached max epochs, stopping training")
+                    self._save_checkpoint(epoch)
+                self.accelerator.wait_for_everyone()
+                return
 
     def _process_batch(self, epoch, i, batch):
         """Process a single batch"""
@@ -326,6 +330,8 @@ def main(args):
         train_ar=args.train_ar,
     )
     trainer.train()
+    if torch.distributed.is_initialized():
+        torch.distributed.destroy_process_group()
     
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

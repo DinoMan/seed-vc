@@ -55,8 +55,10 @@ class FT_Dataset(torch.utils.data.Dataset):
         try:
             speech, orig_sr = librosa.load(wav_path, sr=self.sr)
         except Exception as e:
-            print(f"Failed to load wav file with error {e}")
-            return self.__getitem__(random.randint(0, len(self)))
+            print(f"Failed to load wav file {wav_path} with error {e}")
+            if idx + 1 < len(self.data):
+                return self.__getitem__(idx + 1)
+            return self.__getitem__(0)
         if len(speech) < self.sr * duration_setting["min"] or len(speech) > self.sr * duration_setting["max"]:
             print(f"Audio {wav_path} is too short or too long, skipping")
             return self.__getitem__(random.randint(0, len(self)))

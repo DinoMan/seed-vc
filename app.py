@@ -81,8 +81,8 @@ def convert_voice_v2_wrapper(source_audio_path, target_audio_path, diffusion_ste
 
     # Use yield from to properly handle the generator
     yield from vc_wrapper_v2.convert_voice_with_streaming(
-        source_audio_path=source_audio_path,
-        target_audio_path=target_audio_path,
+        source_audio=source_audio_path,
+        target_audio=target_audio_path,
         diffusion_steps=diffusion_steps,
         length_adjust=length_adjust,
         intelligebility_cfg_rate=intelligebility_cfg_rate,

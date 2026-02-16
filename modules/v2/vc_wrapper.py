@@ -1,9 +1,14 @@
+from typing import Union, Tuple
+
 import torch
 import librosa
 import torchaudio
 import numpy as np
 from pydub import AudioSegment
 from hf_utils import load_custom_model_from_hf
+
+# Audio input can be a path or (audio_array, sample_rate) tuple
+AudioInput = Union[str, Tuple[np.ndarray, int], Tuple[torch.Tensor, int]]
 
 DEFAULT_REPO_ID = "Plachta/Seed-VC"
 DEFAULT_CFM_CHECKPOINT = "v2/cfm_small.pth"
@@ -310,6 +315,7 @@ class VoiceConversionWrapper(torch.nn.Module):
 
     @torch.no_grad()
     def compute_style(self, waves_16k: torch.Tensor, wave_lens_16k: torch.Tensor = None):
+        self.style_encoder.eval()
         if wave_lens_16k is None:
             wave_lens_16k = torch.tensor([waves_16k.size(-1)], dtype=torch.int32).to(waves_16k.device)
         feat_list = []
@@ -459,6 +465,35 @@ class VoiceConversionWrapper(torch.nn.Module):
         vc_wave = self.vocoder(vc_mel.float()).squeeze()[None]
         return vc_wave.cpu().numpy()
 
+    def _load_audio(self, audio: AudioInput) -> np.ndarray:
+        """
+        Load audio from path or array, resampling to model's sample rate.
+
+        Args:
+            audio: File path, or tuple of (audio_array, sample_rate)
+
+        Returns:
+            Audio as numpy array at self.sr sample rate
+        """
+        if isinstance(audio, str):
+            return librosa.load(audio, sr=self.sr)[0]
+
+        data, sr = audio
+        if isinstance(data, torch.Tensor):
+            data = data.cpu().numpy()
+
+        # Handle multi-dimensional arrays
+        if data.ndim > 1:
+            data = data.squeeze()
+            if data.ndim > 1:
+                data = data[0]  # Take first channel
+
+        # Resample if needed
+        if sr != self.sr:
+            data = librosa.resample(data, orig_sr=sr, target_sr=self.sr)
+
+        return data.astype(np.float32)
+
     def _process_content_features(self, audio_16k_tensor, is_narrow=False):
         """Process audio through Whisper model to extract features."""
         content_extractor_fn = self.content_extractor_narrow if is_narrow else self.content_extractor_wide
@@ -494,8 +529,8 @@ class VoiceConversionWrapper(torch.nn.Module):
     @torch.inference_mode()
     def convert_voice_with_streaming(
             self,
-            source_audio_path: str,
-            target_audio_path: str,
+            source_audio: AudioInput,
+            target_audio: AudioInput,
             diffusion_steps: int = 30,
             length_adjust: float = 1.0,
             intelligebility_cfg_rate: float = 0.7,
@@ -511,10 +546,10 @@ class VoiceConversionWrapper(torch.nn.Module):
     ):
         """
         Convert voice with streaming support for long audio files.
-        
+
         Args:
-            source_audio_path: Path to source audio file
-            target_audio_path: Path to target audio file
+            source_audio: Source audio - path string or (audio_array, sample_rate) tuple
+            target_audio: Target audio - path string or (audio_array, sample_rate) tuple
             diffusion_steps: Number of diffusion steps (default: 30)
             length_adjust: Length adjustment factor (default: 1.0)
             intelligebility_cfg_rate: CFG rate for intelligibility (default: 0.7)
@@ -525,14 +560,14 @@ class VoiceConversionWrapper(torch.nn.Module):
             device: Device to use (default: cpu)
             dtype: Data type to use (default: float32)
             stream_output: Whether to stream the output (default: True)
-            
+
         Returns:
             If stream_output is True, yields (mp3_bytes, full_audio) tuples
             If stream_output is False, returns the full audio as a numpy array
         """
         # Load audio
-        source_wave = librosa.load(source_audio_path, sr=self.sr)[0]
-        target_wave = librosa.load(target_audio_path, sr=self.sr)[0]
+        source_wave = self._load_audio(source_audio)
+        target_wave = self._load_audio(target_audio)
         
         # Limit target audio to 25 seconds
         target_wave = target_wave[:self.sr * (self.dit_max_context_len - 5)]
