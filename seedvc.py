@@ -1,3 +1,4 @@
+import importlib.resources
 import os
 from typing import Union, Tuple
 
@@ -46,7 +47,7 @@ class SeedVC:
         self._model = self._load_model(ar_checkpoint_path, cfm_checkpoint_path, compile)
 
     def _get_config_path(self):
-        return Path(__file__).parent / "configs" / "v2" / "vc_wrapper.yaml"
+        return importlib.resources.files("configs.v2") / "vc_wrapper.yaml"
 
     def _load_model(self, ar_checkpoint_path, cfm_checkpoint_path, compile):
         from hydra.utils import instantiate
