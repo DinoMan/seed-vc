@@ -482,6 +482,10 @@ class VoiceConversionWrapper(torch.nn.Module):
         if isinstance(data, torch.Tensor):
             data = data.cpu().numpy()
 
+        # Ensure float for librosa compatibility
+        if not np.issubdtype(data.dtype, np.floating):
+            data = data.astype(np.float32) / np.iinfo(data.dtype).max
+
         # Handle multi-dimensional arrays
         if data.ndim > 1:
             data = data.squeeze()
