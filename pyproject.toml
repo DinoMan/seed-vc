@@ -34,7 +34,9 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
 py-modules = ["seedvc", "hf_utils"]
-packages = ["configs", "configs.v2", "modules", "modules.v2", "modules.astral_quantization", "modules.campplus", "modules.bigvgan", "modules.bigvgan.alias_free_activation", "modules.bigvgan.alias_free_activation.cuda"]
+
+[tool.setuptools.packages.find]
+include = ["configs*", "modules*"]
 
 [tool.setuptools.package-data]
 "*" = ["*.yaml", "*.yml", "*.json"]
