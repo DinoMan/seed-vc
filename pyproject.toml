@@ -19,12 +19,14 @@ dependencies = [
     "pyyaml",
     "accelerate",
     "munch",
-    "descript-audio-codec",
     "jiwer",
     "sounddevice",
     "modelscope",
     "python-dotenv",
 ]
+
+[project.optional-dependencies]
+codec = ["descript-audio-codec"]
 
 [build-system]
 requires = ["setuptools>=61.0"]
